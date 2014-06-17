@@ -1,0 +1,68 @@
+<html>
+<head>
+	<title>Game Of Life</title>
+	<script src="js/jquery-2.1.0.js"></script>
+	<script src="js/client.js"></script>
+
+	<style type="text/css">
+
+	body {
+		margin: 0px;
+	}
+
+	div.status {
+		border: 1px solid #7f7f7f;
+		padding: 0px;
+		margin: 0px;
+		height: 20px;
+		font-size: 16px;
+		background-color: #efefef;
+		padding-left: 5px;
+		padding-right: 5px;
+
+	}
+
+	p.status {
+		margin: 0px;
+		margin-right: 40px;
+		float: left;
+		display: inline-block;
+	}
+
+	button.status {
+		margin: 0px;
+		margin-left: 20px;
+		float: right;
+		display: inline-block;
+		padding: 0px;
+		padding-right: 4px;
+		padding-left: 4px;
+
+		height: 18px;
+		margin: 1px;
+		margin-right: 10px;
+		margin-left: 10px;
+	}
+
+	#canvas {
+		background-color: #efefef;
+        margin-left: auto; 
+        margin-right: auto; 
+	}
+	</style>
+</head>
+
+<body>
+	<div class="status">
+		<p class="status">tick: <span id="gen"></span></p>
+		<p class="status">pop: <span id="pop"></span></p>
+		<p class="status">speed: <span id="speed"></span></p>
+		<p class="status">dimensions: <span id="dimensions"></span></p>
+		<button class="status" id="reset">reset</button>
+		<button class="status" id="increaseSpeed">speed up</button>
+		<button class="status" id="decreaseSpeed">slow down</button>
+	</div>
+	<canvas id="canvas" oncontextmenu="javascript:return false;"></canvas>
+</body>
+
+</html>

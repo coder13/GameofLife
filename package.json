@@ -1,0 +1,11 @@
+{
+  "name": "GameOfLife",
+  "version": "0.0.1",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "socket.io": "*",
+    "Underscore": "*"
+  }
+}
