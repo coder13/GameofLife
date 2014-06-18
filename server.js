@@ -14,7 +14,6 @@ var app = {
 
 var server = http.createServer(function(req, res) {
     try {
-
         if (req.url == "/") {
             res.writeHead(200, { "Content-type": "text/html"});
             res.end(fs.readFileSync(__dirname + "/index.html"));
@@ -35,7 +34,7 @@ var server = http.createServer(function(req, res) {
 });
 
 socketIO.listen(server).on("connection", function (client) {
-   console.log("client connected with id: " + clients.toString());
+   console.log("client connected with id: " + client.id);
    
 }).set("log level", 1);
 
