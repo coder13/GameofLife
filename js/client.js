@@ -15,10 +15,22 @@ $(function() {
 
 	if (canvas.getContext) {
 		app.ctx = canvas.getContext('2d');
+
+		var iosocket = io.connect();
+
+	    iosocket.on("connect", function () {
+	        $("#connection").removeClass('disconnected');
+	        $("#connection").addClass('connected');
+	    });
+	    
+	    iosocket.on("disconnect", function() {
+	        $("#connection").removeClass('connected');
+	        $("#connection").addClass('disconnected');
+	    });
+
 		app.width = canvas.width/app.pixelWidth;
 		app.height = canvas.height/app.pixelWidth;
 
-		
 		app.grid = [];
 		for (i = 0; i < app.width * app.height; i++)
 			app.grid.push(false);

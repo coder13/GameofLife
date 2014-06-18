@@ -44,6 +44,24 @@
 		margin-left: 10px;
 	}
 
+	#connection {
+		float: left;
+		display: inline-block;
+		width: 18px;
+		height: 18px;
+		margin: 1px;
+		margin-right: 4px;
+		border: 1px solid white;
+	}
+
+	.connected {
+		background-color: #00df00;
+	}
+
+	.disconnected {
+		background-color: #ef0000;
+	}
+
 	#canvas {
 		background-color: #efefef;
         margin-left: auto; 
@@ -53,7 +71,10 @@
 </head>
 
 <body>
+	<div id="connection" class="disconnected"></div>
+
 	<div class="status">
+		<p class="status" style="margin-left: 2px; margin-right: 8px">|</p>
 		<p class="status">tick: <span id="gen"></span></p>
 		<p class="status">pop: <span id="pop"></span></p>
 		<p class="status">speed: <span id="speed"></span></p>
