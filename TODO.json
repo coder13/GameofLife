@@ -1,0 +1,16 @@
+TODO: {
+	"Now": {
+		"Create Server to handle realtime syncing of data": []
+		
+	},
+	"future": {
+		"room system": [
+			"clients can connect to different rooms", 
+			"clients can create rooms"
+		], 
+
+
+	}
+
+
+}

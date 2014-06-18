@@ -1,60 +1,129 @@
-var speeds = [1,2,4,5,10,15,20,25,30,40,50,75,100,150,200,250,300,400,500,750,1000], currSpeed = 8;
+var speeds = [1,2,4,5,10,15,20,25,30,40,50,75,100,150,200,250,300,400,500,750,1000];
 var app = {
 	tick: 0, 
-	pop: 0, 
-	pixelWidth: 12, 
+	pop: 0,  
 	paused: true, 
-	speed: speeds[currSpeed]
+	currSpeed: 8
+},  
+client = {
+	pixelWidth: 10, 
+	connected: false
+}, 
+canvas;
+app.speed = speeds[app.currSpeed];
 
-},	canvas;
 
 $(function() {
 	canvas = document.getElementById('canvas');
-	canvas.width = Math.floor(window.innerWidth/app.pixelWidth)*app.pixelWidth;
-	canvas.height = Math.floor((window.innerHeight-22)/app.pixelWidth)*app.pixelWidth;
+	canvas.width = Math.floor(window.innerWidth/client.pixelWidth)*client.pixelWidth;
+	canvas.height = Math.floor((window.innerHeight-22)/client.pixelWidth)*client.pixelWidth;
 
 	if (canvas.getContext) {
-		app.ctx = canvas.getContext('2d');
+		client.ctx = canvas.getContext('2d');
 
-		var iosocket = io.connect();
+		try {
+			client.iosocket = io.connect();
 
-	    iosocket.on("connect", function () {
-	        $("#connection").removeClass('disconnected');
-	        $("#connection").addClass('connected');
-	    });
-	    
-	    iosocket.on("disconnect", function() {
-	        $("#connection").removeClass('connected');
-	        $("#connection").addClass('disconnected');
-	    });
+		    client.iosocket.on("connect", function () {
+		        $("#connection").removeClass('disconnected');
+		        $("#connection").addClass('connected');
+		        client.connected = true;
+		    });
+		    
+		    client.iosocket.on("disconnect", function() {
+		        $("#connection").removeClass('connected');
+		        $("#connection").addClass('disconnected');
+		        client.connected = false;
+		        reset();
+		    });
 
-		app.width = canvas.width/app.pixelWidth;
-		app.height = canvas.height/app.pixelWidth;
+		    client.iosocket.on("init", function(data) {
+		    	data = JSON.parse(data);
+		    	client.id = data.id;
+		    	app = data.appData;
+		    	client.pixelWidth = Math.min(Math.floor(canvas.width/app.width), Math.floor(canvas.height/app.height));
+		    	draw();
+		    });
 
-		app.grid = [];
-		for (i = 0; i < app.width * app.height; i++)
-			app.grid.push(false);
+		    client.iosocket.on("put", function(data) {
+		    	data = JSON.parse(data);
+		    	if (data.fill) {
+		    	    fill(data.x, data.y);
+		    	} else {
+		    	    erase(data.x, data.y);
+		    	}
+				updateStatus();
+		    });
 
-		console.log("Initalizing grid with dimensions: " + app.width + " / " + app.height);
+		    client.iosocket.on('tick', function(data) {
+		    	data = JSON.parse(data);
+		    	data.changes.forEach(function (c) {
+		    		if (c.fill) {
+		    			fill(c.x, c.y);
+		    		} else {
+		    			erase(c.x, c.y);
+		    		}
+		    	});
+		    	app.pop = data.pop;
+		    	app.tick = data.tick;
+		    	updateStatus();
+		    });
+
+		    client.iosocket.on('reset', reset);
+
+		    client.iosocket.on('change', function (data) {
+		    	data = JSON.parse(data);
+		    	switch (data.property) {
+		    	    case "currSpeed": 
+		    	        app.currSpeed = +data.value;
+		    	        app.speed = speeds[app.currSpeed];
+		    	        updateStatus();
+		    	        break; 
+		            case "paused": 
+		                app.paused = data.value;
+		                break;
+				}
+		    });
+		} catch (e) {
+			console.log("Initalizing grid with dimensions: " + app.width + " / " + app.height);
+			
+			app.width = canvas.width/client.pixelWidth;
+			app.height = canvas.height/client.pixelWidth;
+
+			app.grid = [];
+			for (i = 0; i < app.width * app.height; i++)
+				app.grid.push(false);
+		}
 
   		document.addEventListener("keydown", keyDown, false);
 		$("#canvas").on('mousedown', mouse.down);
 		$("#canvas").on('mousemove', mouse.move);
 		$("#canvas").on('mouseup', mouse.up);
 
-		$("#reset").on('click', reset);
+		$("#reset").on('click', function(data) {
+			reset(); 
+
+			if (client.iosocket)
+				client.iosocket.emit('reset');
+		});
 
 		$("#increaseSpeed").on('click', function (event) {
-			if (currSpeed < speeds.length-1) {
-				app.speed = speeds[--currSpeed];
-			}
-			updateStatus();
+			if (app.currSpeed > 0) {
+				app.speed = speeds[--app.currSpeed];
+				
+				if (client.iosocket)
+					client.iosocket.emit('change', JSON.stringify({property: "currSpeed", value: app.currSpeed}));
+				updateStatus();
+			} 
 		});
 		$("#decreaseSpeed").on('click', function (event) {
-			if (currSpeed > 0) {
-				app.speed = speeds[++currSpeed];
+			if (app.currSpeed < speeds.length-1) {
+				app.speed = speeds[++app.currSpeed];
+
+				if (client.iosocket)
+					client.iosocket.emit('change', JSON.stringify({property: "currSpeed", value: app.currSpeed}));
+				updateStatus();
 			}
-			updateStatus();
 		});
 
 		draw();
@@ -65,15 +134,19 @@ $(function() {
 
 function reset() {
 	app.tick = 0;
-	app.speed = 30;
 	app.pop = 0;
 	app.paused = true;
+	app.currSpeed = 8;
+	app.speed = speeds[app.currSpeed];
 	for (i = 0; i < app.width * app.height; i++)
 		app.grid[i] = false;
 	draw();
 }
 
 function tick() {
+	if (client.iosocket)
+		client.iosocket.emit('tick');
+
 	gridCopy = [];
 	for (var i = 0; i < app.width*app.height; i++)
 		gridCopy.push(false);
@@ -125,20 +198,21 @@ loop = function(start) {
 }
   
 function draw() {
-	app.ctx.clearRect(0, 0, canvas.width, canvas.height);
-	var x = 0, y = 0;
-	for (i = 0; i < app.grid.length; i++) {
-		var c = Math.floor(app.grid[i] ? 64 : 196);
-		app.ctx.fillStyle = "rgb(" + c + "," + c + "," + c + ")";
-		x = i % app.width;
-		y = (i - x) / app.width;
-        app.ctx.fillRect(x * app.pixelWidth + 1, y * app.pixelWidth + 1, app.pixelWidth - 1, app.pixelWidth - 1);
+	if (app.grid) {
+		client.ctx.clearRect(0, 0, canvas.width, canvas.height);
+		var x = 0, y = 0;
+		for (i = 0; i < app.grid.length; i++) {
+			var c = Math.floor(app.grid[i] ? 64 : 196);
+			client.ctx.fillStyle = "rgb(" + c + "," + c + "," + c + ")";
+			x = i % app.width;
+			y = (i - x) / app.width;
+	        client.ctx.fillRect(x * client.pixelWidth + 1, y * client.pixelWidth + 1, client.pixelWidth - 1, client.pixelWidth - 1);
+		}
 	}
 	updateStatus();
 }
 
 function keyDown(event) {
-	console.log(event.which + " pressed");
 	switch (event.which) {
 		case 32: // Space
 			event.preventDefault();
@@ -149,6 +223,8 @@ function keyDown(event) {
 			event.preventDefault();
 			app.paused = !app.paused;
 			loop(!app.paused);
+			if (client.iosocket)
+				client.iosocket.emit('change', JSON.stringify({property: 'paused', 'value': app.paused}));
 			break;
 	}
 }
@@ -173,18 +249,23 @@ var mouse = {
 }
 
 function put(w) {
-	var x = Math.floor((event.offsetX || event.clientX - canvas.offsetLeft) / app.pixelWidth),
-		y = Math.floor((event.offsetY || event.clientY - canvas.offsetTop) / app.pixelWidth);
+	var x = Math.floor((event.offsetX || event.clientX - canvas.offsetLeft) / client.pixelWidth),
+		y = Math.floor((event.offsetY || event.clientY - canvas.offsetTop) / client.pixelWidth);
 
 	if (w==2) {
 		console.log([x,y].toString() + "\t" + neighbors(x,y));
 		return;
 	}
 	var v = app.grid[y*app.width+x];
-	if (v && w==3)
+	if (v && w==3) {
 		erase(x,y);
-	else if (!v && w!=3)
+		if (client.iosocket)
+			client.iosocket.emit("put", JSON.stringify({fill: false, x: x, y: y}));
+	} else if (!v && w!=3){
 		fill(x,y);
+		if (client.iosocket)
+			client.iosocket.emit("put", JSON.stringify({fill: true, x: x, y: y}));
+	}
 	updateStatus();
 }
 
@@ -193,8 +274,8 @@ function fill(x, y, grid) {
 		return;
 	if (!app.grid[y*app.width+x]) {
 		app.pop++;
-		app.ctx.fillStyle = "rgb(64,64,64)";
-		app.ctx.fillRect(x*app.pixelWidth+1, y*app.pixelWidth+1, app.pixelWidth-1, app.pixelWidth-1);
+		client.ctx.fillStyle = "rgb(64,64,64)";
+		client.ctx.fillRect(x*client.pixelWidth+1, y*client.pixelWidth+1, client.pixelWidth-1, client.pixelWidth-1);
 		(grid ? grid : app.grid)[y*app.width+x] = true;
 	}
 }
@@ -204,8 +285,8 @@ function erase(x, y, grid) {
 		return;
 	if (app.grid[y*app.width+x]) {
 		app.pop--;
-		app.ctx.fillStyle = "rgb(196,196,196)";
-		app.ctx.fillRect(x*app.pixelWidth+1, y*app.pixelWidth+1, app.pixelWidth-1, app.pixelWidth-1);
+		client.ctx.fillStyle = "rgb(196,196,196)";
+		client.ctx.fillRect(x*client.pixelWidth+1, y*client.pixelWidth+1, client.pixelWidth-1, client.pixelWidth-1);
 		(grid ? grid : app.grid)[y*app.width+x] = false;
 	}
 }
@@ -213,7 +294,12 @@ function erase(x, y, grid) {
 function updateStatus() {
 	$("#gen").text(app.tick);
 	$("#pop").text(app.pop);
-	$("#speed").text(app.speed);
+	$("#speed").text(Math.round((1000/app.speed)*10)/10);
+	if (app.currSpeed == 0)
+		$("#ts").text("tick / sec");
+	else
+		$("#ts").text("ticks / sec");
+
 	$("#dimensions").text(app.width + " / " + app.height);
 }
 
