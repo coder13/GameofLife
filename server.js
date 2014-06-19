@@ -24,7 +24,7 @@ var server = http.createServer(function(req, res) {
             if (path[path.length-1] == 'js')
                 res.writeHead(200, {"Content-type": "text/javascript"});
             else if(path[path.length-1] == 'css')
-                res.writeHead(200, {"content-type": "text/css"})
+                res.writeHead(200, {"content-type": "text/css"});
             else
                 res.writeHead(200, {"Content-type": "text/plain"});
 
@@ -44,6 +44,9 @@ for (var i = 0; i < app.width * app.height; i++) {
 socketIO.listen(server).on("connection", function (client) {
     console.log("client connected with id: " + client.id);
     client.emit('init', JSON.stringify({id: client.id, appData: app}));
+    if (!app.currSpeed) {
+        console.log("SPEED ISN'T DEFINED");
+    }
 
     client.on('put', function(data) {
         client.broadcast.emit('put', data);
@@ -74,6 +77,9 @@ socketIO.listen(server).on("connection", function (client) {
         switch (data.property) {
             case "currSpeed": 
                 app.currSpeed = +data.value;
+                if (app.currSpeed == NaN) {
+                    console.log("SPEED IS NOT A NUMBER");
+                }
                 app.speed = speeds[app.currSpeed];
                 break; 
             case "paused": 
