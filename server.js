@@ -113,7 +113,7 @@ function reset() {
 }
 
 function tick(room) {
-    var roomCopy = {width: room.width, height: room.height, tick: room.tick, pop: room.pop, paused: room.paused}, changes = [];
+    var roomCopy = {width: room.width, height: room.height, tick: room.tick, pop: room.pop, paused: room.paused, currSpeed: room.currSpeed, speed: room.speed}, changes = [];
     roomCopy.grid = [];
     for (var i = 0; i < room.width*room.height; i++) {
         roomCopy.grid.push(false);
