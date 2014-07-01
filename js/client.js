@@ -69,6 +69,10 @@ $(document).ready(function() {
 				updateStatus();
 			});
 
+			client.iosocket.on('pause', function(data) {
+				app.pause = JSON.parse(data).pause;
+			});
+
 			client.iosocket.on('reset', reset);
 
 			client.iosocket.on('change', function (data) {
@@ -84,6 +88,7 @@ $(document).ready(function() {
 						break;
 				}
 			});
+
 		} catch (e) {
 			console.log("Initalizing grid with dimensions: " + app.width + " / " + app.height);
 			
@@ -222,9 +227,11 @@ function keyDown(event) {
 		case 13: 
 			event.preventDefault();
 			app.paused = !app.paused;
-			loop(!app.paused);
-			if (client.iosocket)
-				client.iosocket.emit('change', JSON.stringify({property: 'paused', 'value': app.paused}));
+			if (client.iosocket) {
+				client.iosocket.emit('pause');
+			} else {
+				loop(!app.paused);
+			}
 			break;
 	}
 }
@@ -256,6 +263,7 @@ function put(w) {
 		console.log([x,y].toString() + "\t" + neighbors(x,y));
 		return;
 	}
+	
 	var v = app.grid[y*app.width+x];
 	if (v && w==3) {
 		erase(x,y);

@@ -41,7 +41,8 @@ for (var i = 0; i < app.width * app.height; i++) {
     app.grid.push(false);
 }
 
-socketIO.listen(server).on("connection", function (client) {
+var socketServer = socketIO.listen(server);
+socketServer.on("connection", function (client) {
     console.log("client connected with id: " + client.id);
     client.emit('init', JSON.stringify({id: client.id, appData: app}));
     if (!app.currSpeed) {
@@ -63,6 +64,17 @@ socketIO.listen(server).on("connection", function (client) {
         var changes = change[0];
         app = change[1];
         client.broadcast.emit('tick', JSON.stringify({changes: changes, pop: app.pop, tick: app.tick}));
+    });
+
+    client.on('pause', function(data) {
+        app.paused = !app.paused;
+        client.broadcast.emit('pause', JSON.stringify({paused: app.paused}));
+        if (app.paused)
+            console.log('pausing');
+        else
+            console.log('unpausing');
+        
+        loop(!app.paused);
     });
 
     client.on('reset', function(data) {
@@ -126,6 +138,21 @@ function tick(room) {
     room = roomCopy;
     
     return [changes, room];
+}
+
+loop = function(start) {
+    _loop = function() {
+        change = tick(app);
+        var changes = change[0];
+        app = change[1];
+        socketServer.sockets.emit('tick', JSON.stringify({changes: changes, pop: app.pop, tick: app.tick}));
+        
+        if (!app.paused)
+            setTimeout(_loop, app.speed);
+    }
+
+    if (start)
+        _loop();
 }
 
 function neighbors(room, x,y) {
