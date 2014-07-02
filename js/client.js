@@ -1,19 +1,20 @@
 var speeds = [1,2,4,5,10,15,20,25,30,40,50,75,100,150,200,250,300,400,500,750,1000];
 var app = {
-	tick: 0, 
-	pop: 0,  
-	paused: true, 
+	tick: 0,
+	pop: 0,
+	paused: true,
 	currSpeed: 8
-},  
-client = {
-	pixelWidth: 10, 
-	connected: false
-}, 
-canvas;
+};
 app.speed = speeds[app.currSpeed];
+
+var canvas, client = {
+	pixelWidth: 10,
+	connected: false
+};
 
 
 $(document).ready(function() {
+
 	canvas = document.getElementById('canvas');
 	canvas.width = Math.floor(window.innerWidth/client.pixelWidth)*client.pixelWidth;
 	canvas.height = Math.floor((window.innerHeight-22)/client.pixelWidth)*client.pixelWidth;
@@ -21,96 +22,14 @@ $(document).ready(function() {
 	if (canvas.getContext) {
 		client.ctx = canvas.getContext('2d');
 
-		try {
-			client.iosocket = io.connect();
-
-			client.iosocket.on("connect", function () {
-				$("#connection").removeClass('disconnected');
-				$("#connection").addClass('connected');
-				client.connected = true;
-			});
-
-			client.iosocket.on("disconnect", function() {
-				$("#connection").removeClass('connected');
-				$("#connection").addClass('disconnected');
-				client.connected = false;
-				reset();
-			});
-
-			client.iosocket.on("init", function(data) {
-				data = JSON.parse(data);
-				client.id = data.id;
-				app = data.appData;
-				client.pixelWidth = Math.min(Math.floor(canvas.width/app.width), Math.floor(canvas.height/app.height));
-				draw();
-			});
-
-			client.iosocket.on("put", function(data) {
-				data = JSON.parse(data);
-				if (data.fill) {
-					fill(data.x, data.y);
-				} else {
-					erase(data.x, data.y);
-				}
-				updateStatus();
-			});
-
-			client.iosocket.on('tick', function(data) {
-				data = JSON.parse(data);
-				data.changes.forEach(function (c) {
-					if (c.fill) {
-						fill(c.x, c.y);
-					} else {
-						erase(c.x, c.y);
-					}
-				});
-				app.pop = data.pop;
-				app.tick = data.tick;
-				updateStatus();
-			});
-
-			client.iosocket.on('pause', function(data) {
-				app.pause = JSON.parse(data).pause;
-			});
-
-			client.iosocket.on('reset', reset);
-
-			client.iosocket.on('change', function (data) {
-				data = JSON.parse(data);
-				switch (data.property) {
-					case "currSpeed":
-						app.currSpeed = +data.value;
-						app.speed = speeds[app.currSpeed];
-						updateStatus();
-						break;
-					case "paused":
-						app.paused = data.value;
-						break;
-				}
-			});
-
-		} catch (e) {
-			console.log("Initalizing grid with dimensions: " + app.width + " / " + app.height);
-			
-			app.width = canvas.width/client.pixelWidth;
-			app.height = canvas.height/client.pixelWidth;
-
-			app.grid = [];
-			for (i = 0; i < app.width * app.height; i++)
-				app.grid.push(false);
-		}
+		connect();
 
 		document.addEventListener("keydown", keyDown, false);
 		$("#canvas").on('mousedown', mouse.down);
 		$("#canvas").on('mousemove', mouse.move);
 		$("#canvas").on('mouseup', mouse.up);
 
-		$("#reset").on('click', function(data) {
-			reset(); 
-
-			if (client.iosocket)
-				client.iosocket.emit('reset');
-		});
+		$("#reset").on('click', reset);
 
 		$("#increaseSpeed").on('click', function (event) {
 			if (app.currSpeed > 0) {
@@ -119,7 +38,7 @@ $(document).ready(function() {
 				if (client.iosocket)
 					client.iosocket.emit('change', JSON.stringify({property: "currSpeed", value: app.currSpeed}));
 				updateStatus();
-			} 
+			}
 		});
 		$("#decreaseSpeed").on('click', function (event) {
 			if (app.currSpeed < speeds.length-1) {
@@ -137,7 +56,102 @@ $(document).ready(function() {
 	}
 });
 
+$(window).resize(function() {
+	canvas.width = $(window).innerWidth();
+	canvas.height = $(window).innerHeight()-20;
+	client.pixelWidth = Math.min(Math.floor(canvas.width/app.width), Math.floor(canvas.height/app.height));
+	draw();
+});
+
+function connect() {
+	console.log('connecting');
+	try {
+		client.iosocket = io.connect();
+
+		client.iosocket.on("connect", function () {
+			$("#connection").removeClass('disconnected');
+			$("#connection").addClass('connected');
+			client.connected = true;
+		});
+
+		client.iosocket.on("disconnect", function() {
+			$("#connection").removeClass('connected');
+			$("#connection").addClass('disconnected');
+			client.connected = false;
+			reset();
+		});
+
+		client.iosocket.on("init", function(data) {
+			data = JSON.parse(data);
+			client.id = data.id;
+			app = data.appData;
+			client.pixelWidth = Math.min(Math.floor(canvas.width/app.width), Math.floor(canvas.height/app.height));
+			draw();
+		});
+
+		client.iosocket.on("put", function(data) {
+			data = JSON.parse(data);
+			if (data.fill) {
+				fill(data.x, data.y);
+			} else {
+				erase(data.x, data.y);
+			}
+			updateStatus();
+		});
+
+		client.iosocket.on('tick', function(data) {
+			data = JSON.parse(data);
+			data.changes.forEach(function (c) {
+				if (c.fill) {
+					fill(c.x, c.y);
+				} else {
+					erase(c.x, c.y);
+				}
+			});
+			app.pop = data.pop;
+			app.tick = data.tick;
+			updateStatus();
+		});
+
+		client.iosocket.on('pause', function(data) {
+			app.pause = JSON.parse(data).pause;
+		});
+
+		client.iosocket.on('reset', function(data) {
+			app = JSON.parse(data);
+			draw();
+		});
+
+		client.iosocket.on('change', function (data) {
+			data = JSON.parse(data);
+			switch (data.property) {
+				case "currSpeed":
+					app.currSpeed = +data.value;
+					app.speed = speeds[app.currSpeed];
+					updateStatus();
+					break;
+				case "paused":
+					app.paused = data.value;
+					break;
+			}
+		});
+
+	} catch (e) {
+		console.log("Initializing grid with dimensions: " + app.width + " / " + app.height);
+		
+		app.width = canvas.width/client.pixelWidth;
+		app.height = canvas.height/client.pixelWidth;
+
+		app.grid = [];
+		for (i = 0; i < app.width * app.height; i++)
+			app.grid.push(false);
+	}
+}
+
 function reset() {
+	if (client.iosocket)
+		client.iosocket.emit('reset');
+	
 	app.tick = 0;
 	app.pop = 0;
 	app.paused = true;
@@ -153,10 +167,9 @@ function tick() {
 		client.iosocket.emit('tick');
 
 	gridCopy = [];
-	for (var i = 0; i < app.width*app.height; i++)
-		gridCopy.push(false);
 	for (var i = 0; i < app.width*app.height; i++) {
-		var x = i%app.width, 
+		gridCopy.push(false);
+		var x = i%app.width,
 			y = (i-x)/app.width,
 			n = neighbors(x,y);
 		if (app.grid[i] && (n < 2 || n > 3)) {

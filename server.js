@@ -1,13 +1,13 @@
-var fs = require("fs"), 
-    http = require("http"), 
-    socketIO = require("socket.io"), 
+var fs = require("fs"),
+    http = require("http"),
+    socketIO = require("socket.io"),
     port = (process.argv[2]? +process.argv[2]:8000);
 
 var speeds = [1,2,4,5,10,15,20,25,30,40,50,75,100,150,200,250,300,400,500,750,1000];
 var app = {
-    tick: 0, 
+    tick: 0,
     pop: 0,
-    paused: true, 
+    paused: true,
     currSpeed: 8,
     width: 100,
     height: 50
@@ -45,9 +45,6 @@ var socketServer = socketIO.listen(server);
 socketServer.on("connection", function (client) {
     console.log("client connected with id: " + client.id);
     client.emit('init', JSON.stringify({id: client.id, appData: app}));
-    if (!app.currSpeed) {
-        console.log("SPEED ISN'T DEFINED");
-    }
 
     client.on('put', function(data) {
         client.broadcast.emit('put', data);
@@ -80,21 +77,18 @@ socketServer.on("connection", function (client) {
     client.on('reset', function(data) {
         console.log('reseting');
         reset();
-        client.broadcast.emit('reset');
+        client.broadcast.emit('reset', JSON.stringify(app));
     });
 
     client.on('change', function(data) {
         client.broadcast.emit('change', data);
         data = JSON.parse(data);
         switch (data.property) {
-            case "currSpeed": 
+            case "currSpeed":
                 app.currSpeed = +data.value;
-                if (app.currSpeed == NaN) {
-                    console.log("SPEED IS NOT A NUMBER");
-                }
                 app.speed = speeds[app.currSpeed];
-                break; 
-            case "paused": 
+                break;
+            case "paused":
                 app.paused = data.value;
                 break;
         }
@@ -117,7 +111,7 @@ function tick(room) {
     roomCopy.grid = [];
     for (var i = 0; i < room.width*room.height; i++) {
         roomCopy.grid.push(false);
-        var x = i%room.width, 
+        var x = i%room.width,
             y = (i-x)/room.width,
             n = neighbors(room, x,y);
 
@@ -127,7 +121,7 @@ function tick(room) {
             changes.push({fill: false, x: x, y: y});
         } else if (!room.grid[i] && n==3) { // fill
             roomCopy.pop++;
-            roomCopy.grid[i] = true;    
+            roomCopy.grid[i] = true;
             changes.push({fill: true, x: x, y: y});
         } else
             roomCopy.grid[i] = room.grid[i];
